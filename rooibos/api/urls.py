@@ -1,9 +1,15 @@
-from django.conf.urls import patterns, url
+from __future__ import absolute_import
+from django.conf.urls import patterns, url, include, handler404
 
+from rest_framework import routers
 
-from views import *
+from .views import *
+
+router = routers.DefaultRouter()
+router.register(r'record', RecordViewSet)
 
 urlpatterns = patterns('',
+
     url(r'^collection/(?P<id>\d+)/$', collections),
     url(r'^collections/$', collections),
     url(r'^login/$', login),
@@ -16,4 +22,6 @@ urlpatterns = patterns('',
     url(r'^keepalive/$', keep_alive, name='api-keepalive'),
     url(r'^autocomplete/user/$', autocomplete_user, name='api-autocomplete-user'),
     url(r'^autocomplete/group/$', autocomplete_group, name='api-autocomplete-group'),
+    # for now separate out django-rest api
+    url(r'^v2/', include(router.urls)),
 )

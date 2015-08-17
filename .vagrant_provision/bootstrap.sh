@@ -10,6 +10,8 @@ MDID_DATA_DIR=$HOME_DIR/mdid-data
 CONFIG_DIR=$MDID_DIR/config
 ROOIBOS_DIR=$MDID_DIR/rooibos
 
+SQL_PASSWORD=rooibos
+
 sudo -u vagrant mkdir -p bootstrap_logs
 
 
@@ -40,8 +42,8 @@ echo -e "################# Installing MySQL, Solr, RabbitMQ, memcached #########
 
 echo -e "\n\n                  PSSST:  the mysql root password is: rooibos\n\n"
 
-echo mysql-server mysql-server/root_password password rooibos | debconf-set-selections
-echo mysql-server mysql-server/root_password_again password rooibos | debconf-set-selections
+echo mysql-server mysql-server/root_password password SQL_PASSWORD | debconf-set-selections
+echo mysql-server mysql-server/root_password_again password SQL_PASSWORD | debconf-set-selections
 
 # Now we can install the packages
 # mysql-server: The MySQL server
@@ -103,6 +105,12 @@ sudo -u vagrant mkdir -p $MDID_DATA_DIR/scratch/logs
 # link in a little helper script for running the django dev server
 sudo -u vagrant ln -s $PROVISION_DIR/runserver $HOME_DIR/
 
+# touch the
+
+
+sudo -u vagrant mkdir ~/mdid-data/logs/
+sudo -u vagrant touch ~/mdid-data/logs/request.log
+
 ##############################################################################
 # Configure Python and setup a Virtual Environment
 ##############################################################################
@@ -162,20 +170,27 @@ pip install --upgrade -r requirements.txt
 ##############################################################################
 # Configure MDID
 ##############################################################################
-# create the MDID database
-mysql -uroot -pmdid < .vagrant_provision/create_database.sql
+# create the MDID database -
+mysql -u root -p$SQL_PASSWORD < /vagrant/.vagrant_provision/create_database.sql
 
-# create the local settings
-if [ -f $CONFIG_DIR/settings_local.py ]; then
-  # backup any existing local settings first
-  mv $CONFIG_DIR/settings_local.py $ROOIBOS_DIR/settings_local.backup.py
-fi
-# Get the default gateway IP address so we can add it to INTERNAL_IPS
-GATEWAY_IP=`route -n | grep 'UG' | awk '{print $2}'`
-# filter our local settings template, replacing necessary values
-cat $PROVISION_DIR/settings_local.vagrant.py \
-  | sed -e "s/<<GATEWAY_IP>>/$GATEWAY_IP/" \
-  > $ROOIBOS_DIR/settings_local.py
+# you can load the schema to work around current weird migrations problems
+# mysql -u root -p$SQL_PASSWORD < /vagrant/.vagrant_provision/mdid_schema.sql
+
+# not sure why, but this was deleting my settings_local file and then failing
+# - this might be a better thing with environment variables
+# todo: look
+
+## create the local settings
+#if [ -f $CONFIG_DIR/settings_local.py ]; then
+#  # backup any existing local settings first
+#  mv $CONFIG_DIR/settings_local.py $ROOIBOS_DIR/settings_local.backup.py
+#fi
+## Get the default gateway IP address so we can add it to INTERNAL_IPS
+#GATEWAY_IP=`route -n | grep 'UG' | awk '{print $2}'`
+## filter our local settings template, replacing necessary values
+#cat $PROVISION_DIR/settings_local.vagrant.py \
+#  | sed -e "s/<<GATEWAY_IP>>/$GATEWAY_IP/" \
+#  > $ROOIBOS_DIR/settings_local.py
 
 # move into the $MDID directory (django 1.6 now has manage.py in the top dir)
 cd $MDID_DIR
@@ -183,18 +198,24 @@ cd $MDID_DIR
 chmod +x manage.py
 
 # setup the database
-python manage.py syncdb --noinput
-python manage.py createcachetable cache
+
+./manage.py migrate --fake-initial
+./manage.py migrate
+./manage.py createcachetable cache
 
 
 echo -e "################# Adding Upstart scripts for Solr and the Workers #################"
 cp $PROVISION_DIR/mdid3-*.conf /etc/init
 
 
-## make sure settings_local (if it exists) is not copied over
-# rm
-
 echo -e "################# Starting Up Services #################"
 # start up the services
 service mdid3-solr start
 service mdid3-workers start
+
+
+
+echo -e "### COMPLETED ###"
+echo -e "You can start the mdid local server via"
+echo -e "vagrant shh -c '/vagrant/manage.py runserver'"
+

@@ -34,6 +34,7 @@ urlpatterns = patterns('',
     # direct_to_template replaced in dj1.5
     # url(r'^report-problem/$', direct_to_template, {'template': 'ui_report_problem.html'}, name='ui-report-problem'),
     url(r'^report-problem/$', TemplateView.as_view(template_name='ui_report_problem.html'), name='ui-report-problem'),
+    #todo: why do the next two urls cause ./manage.py to crash before migrations are run?
     url(r'^announcement/new/$', CreateView, {
         'model': Comment,
         'template_name': 'ui_announcements_form.html',

@@ -133,7 +133,7 @@ INSTALLED_APPS = (
     'rooibos.federatedsearch.artstor',
     'rooibos.federatedsearch.flickr',
     'rooibos.converters',
-    'rest_framework',
+    #'rest_framework',
     # replace rooibos.contrib.tagging with django-tagging
     'tagging',
     'rooibos.workers',

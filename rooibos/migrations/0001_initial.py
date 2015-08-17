@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.db import models, migrations
 from django.conf import settings
 
-#from django.contrib.contenttypes.management import update_contenttypes
+from django.contrib.contenttypes.management import update_contenttypes
 
 #update_contenttypes()
 
@@ -12,6 +12,7 @@ from django.conf import settings
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('flatpages', '0001_initial'),
         ('contenttypes', '0002_remove_content_type_name'),
         ('auth', '0006_require_contenttypes_0002'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

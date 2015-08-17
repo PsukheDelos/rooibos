@@ -1,5 +1,23 @@
-import os
-import sys
+from distutils.version import StrictVersion
+import socket
+from os import uname, getpid, getcwd, curdir, environ
+from os.path import normpath, join, dirname, exists, abspath
+from django import get_version
+from sys import modules, path as sys_path
+
+
+LOCAL_HOSTNAME = socket.gethostname()
+DJANGO_VERSION = StrictVersion(get_version())
+print 'Django version is %s' % DJANGO_VERSION
+# a method for switching the database name based on which version of django is running
+# (only useful if you're contributing to MDID or running lots of tests_
+#
+# DJANGO_16 = StrictVersion('1.6.10')
+# if DJANGO_VERSION > DJANGO_16:
+#     DATABASE_NAME = 'rooibos17'
+# else:
+#     DATABASE_NAME = 'rooibos'
+
 
 '''-### directory variables ############################################-
 
@@ -20,32 +38,57 @@ import sys
 
         Any path can be made absolute like this:
 
-        ROOIBOS_ROOT = os.path.normpath( '/var/local/mdid/rooibos' ))
+        ROOIBOS_ROOT = normpath( '/var/local/mdid/rooibos' ))
 
 '''
 
-
-# MDID root  (e.g. /var/local/mdid/ )
-PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '../'))
+# MDID root  (e.g. /var/local/mdid/ ) - generates a path from the directory above (../) this file's directory
+PROJECT_ROOT = normpath(join(dirname(__file__), '../'))
 # setting for django-extensions
 BASE_DIR = PROJECT_ROOT
-# the rooibos directory (e.g. /var/local/mdid/rooibos )
-ROOIBOS_ROOT = os.path.normpath(os.path.join(PROJECT_ROOT, 'rooibos'))
+# the rooibos directory (e.g. /var/local/mdid/rooibos )  - PROJECT_ROOT + rooibos (join adds the /)
+ROOIBOS_ROOT = normpath(join(PROJECT_ROOT, 'rooibos'))
 
 '''-### Local Data ############################################-'''
 
-# this defines where files will be stored - by default it will be a directory
-# called mdid-data that is in the same directory as PROJECT_ROOT (stored outside of the application)
-DEFAULT_DATA_DIR = os.path.normpath(os.path.join(PROJECT_ROOT, '../', 'mdid-data/'))
-#DEFAULT_DATA_DIR = os.path.normpath(os.path.join(PROJECT_ROOT, '../', 'mdid-data/', 'hacking-mdid3'))
+# use the
+
+# if running via vagrant
+if uname()[1] == 'vagrant-ubuntu-trusty-64' and exists('/vagrant'):
+    DEFAULT_DATA_DIR = normpath('/home/vagrant/mdid-data')
+    DATABASE_NAME = 'rooibos'
+    DATABASE_USER = 'rooibos'
+    DATABASE_PASSWORD = 'rooibos'
+    DATABASE_HOST = '127.0.0.1'
+    DATABASE_PORT = '3306'
+    FFMPEG_EXECUTABLE = '/usr/local/bin/ffmpeg'
+
+# examples of specifying other environments
+elif uname()[0] == 'Linux' and LOCAL_HOSTNAME == 'mdid3' and exists('/var/local/mdid-storage'):
+    print('Starting with deployment settings')
+    DEFAULT_DATA_DIR = normpath('/var/local/mdid-storage')
+
+elif uname()[0] == 'Windows' and exists(join('C:/', 'mdid')):
+    DEFAULT_DATA_DIR = normpath(join('C:/', 'mdid-data'))
+    FFMPEG_EXECUTABLE = join(PROJECT_ROOT, 'dist', 'windows', 'ffmpeg', 'bin', 'ffmpeg.exe')
+
+# sensible defaults here
+else:
+    # this defines where files will be stored - by default it will be a directory
+    # called mdid-data that is in the same directory as PROJECT_ROOT (stored outside of the application)
+    DEFAULT_DATA_DIR = normpath(join(PROJECT_ROOT, '../', 'mdid-data/'))
+
+    # if running multiple instances you can make subdirectories
+    #DEFAULT_DATA_DIR = normpath(join(PROJECT_ROOT, '../', 'mdid-data/', 'hacking-mdid3'))
+
 # I'm trying to remember what this is for...
-# DEFAULT_CUSTOM_DIR = os.path.normpath(os.path.join(PROJECT_ROOT, '../', 'mdid-data/', 'local_static'))
+# DEFAULT_CUSTOM_DIR = normpath(join(PROJECT_ROOT, '../', 'mdid-data/', 'local_static'))
 
 # scratch_dir is where image resizes & thumbnails are stored
-SCRATCH_DIR = os.path.normpath(os.path.join(DEFAULT_DATA_DIR, 'mdid-scratch'))
+SCRATCH_DIR = normpath(join(DEFAULT_DATA_DIR, 'mdid-scratch'))
 # storage for files not defined by storage?
 # TODO: get better definition for what AUTO_STORAGE_DIR is for
-AUTO_STORAGE_DIR = os.path.normpath(os.path.join(DEFAULT_DATA_DIR, 'collections'))
+AUTO_STORAGE_DIR = normpath(join(DEFAULT_DATA_DIR, 'collections'))
 
 '''### MEDIA settings
 
@@ -73,12 +116,12 @@ UPLOAD_LIMIT = 1024 * 1024
 # Where django templates are loaded from - in general, adding to this is ok - don't remove directories without
 TEMPLATE_DIRS = (
     # It is possible to extend django templates (see changes.md) - save them in [mdid root]/templates
-    os.path.normpath(os.path.join(PROJECT_ROOT, 'templates')),
-    os.path.normpath(os.path.join(ROOIBOS_ROOT, 'templates')),
-    os.path.normpath(os.path.join(ROOIBOS_ROOT, 'access', 'templates')),
-    os.path.normpath(os.path.join(ROOIBOS_ROOT, 'ui', 'templates')),
-    os.path.normpath(os.path.join(ROOIBOS_ROOT, 'federatedsearch', 'shared', 'templates')),
-    os.path.normpath(os.path.join(ROOIBOS_ROOT, 'contrib', 'google_analytics', 'templates')),
+    normpath(join(PROJECT_ROOT, 'templates')),
+    normpath(join(ROOIBOS_ROOT, 'templates')),
+    normpath(join(ROOIBOS_ROOT, 'access', 'templates')),
+    normpath(join(ROOIBOS_ROOT, 'ui', 'templates')),
+    normpath(join(ROOIBOS_ROOT, 'federatedsearch', 'shared', 'templates')),
+    normpath(join(ROOIBOS_ROOT, 'contrib', 'google_analytics', 'templates')),
 )
 
 '''#-### DEBUG/SETUP/DEVELOPMENT Variables ############################################
@@ -116,8 +159,8 @@ TESTING = False
         Settings in this section allow customization of your MDID installation
         You can put local files in mdid_dj16-data/local_static and
         add reference them like:
-        LOGO_URL = os.path.normpath(os.path.join(DEFAULT_CUSTOM_DIR, 'logo.png'))
-        FAVICON_URL = os.path.normpath(os.path.join(DEFAULT_CUSTOM_DIR, 'favico.ico'))
+        LOGO_URL = normpath(join(DEFAULT_CUSTOM_DIR, 'logo.png'))
+        FAVICON_URL = normpath(join(DEFAULT_CUSTOM_DIR, 'favico.ico'))
 
 '''
 
@@ -161,7 +204,7 @@ SESSION_COOKIE_AGE = 6 * 3600  # in seconds
 # Requires valid ssl cert, otherwise set to None
 SSL_PORT = None  # ':443'
 
-# Theme colors for use in CSS
+# Theme colors for use in CSS - see rooibos/ui/templates/master/css
 PRIMARY_COLOR = "rgb(152, 189, 198)"
 SECONDARY_COLOR = "rgb(118, 147, 154)"
 
@@ -174,7 +217,7 @@ DEFAULT_LANGUAGE = 'en-us'
 
 ''' #####-##### Database settings  ############################################-
 
-    Settings for MySQL are included - even test setups with sqlite are probably a bad idea
+    Settings for MySQL are included - even test setups with sqlite a bad idea, don't use sqlite
     see https://docs.djangoproject.com/en/1.6/ref/databases/#oracle-notes for Oracle Setup
 
 '''
@@ -205,8 +248,9 @@ DATABASES = {
 DEFAULT_CHARSET = 'utf-8'
 DATABASE_CHARSET = 'utf8'
 
-# TODO: Does MS SQL Server still work with django 1.6? Is this testable anywhere?
+# TODO: Does MS SQL Server still work with django 1.8? Is this testable anywhere?
 # see also http://django-mssql.readthedocs.org/en/latest/
+# and https://bitbucket.org/Manfre/django-mssql/
 # Settings for Microsoft SQL Server (use the appropriate driver setting)
 #DATABASE_ENGINE = 'sql_server.pyodbc'
 #DATABASE_OPTIONS= {
@@ -220,7 +264,7 @@ DATABASE_CHARSET = 'utf8'
 #####-##### other apps  ############################################-'''
 
 # Todo: add windows path back
-FFMPEG_EXECUTABLE = '/usr/local/bin/ffmpeg'
+# FFMPEG_EXECUTABLE = '/usr/local/bin/ffmpeg'
 
 SOLR_URL = 'http://127.0.0.1:8983/solr/'
 
@@ -384,19 +428,20 @@ if CL_DEBUG:
     print 'log file:      ', LOGGING['handlers']['file']['filename']
 
 if CL_DEBUG == 'Full':
-    print "os.getpid() =", os.getpid()
-    print "os.getcwd() =", os.getcwd()
-    print "os.curdir   =", os.path.abspath(os.curdir)
-    print "sys.path    =", repr(sys.path)
+    print '=================CL_DEBUG set to \'Full\' - change to \'True\' to suppress the rest ==================\n'
+    print "os.getpid() =", getpid()
+    print "os.getcwd() =", getcwd()
+    print "os.curdir   =", abspath(curdir)
+    print "sys.path    =", repr(sys_path)
     print '=================forks in sys.path==================\n'
-    for forks in sys.path:
+    for forks in sys_path:
         print forks, '\n'
     print '==================sys.modules.keys==================\n'
-    print "sys.modules.keys() =", repr(sys.modules.keys())
-    print "sys.modules.has_key('rooibos') =", sys.modules.has_key('rooibos')
-    if sys.modules.has_key('rooibos'):
-        print "sys.modules['rooibos'].__name__ =", sys.modules['rooibos'].__name__
-        print "sys.modules['rooibos'].__file__ =", sys.modules['rooibos'].__file__
-        print "os.environ['DJANGO_SETTINGS_MODULE'] =", os.environ.get('DJANGO_SETTINGS_MODULE', None)
+    print "sys.modules.keys() =", repr(modules.keys())
+    print "sys.modules.has_key('rooibos') =", 'rooibos' in modules
+    if 'rooibos' in modules:
+        print "sys.modules['rooibos'].__name__ =", modules['rooibos'].__name__
+        print "sys.modules['rooibos'].__file__ =", modules['rooibos'].__file__
+        print "os.environ['DJANGO_SETTINGS_MODULE'] =", environ.get('DJANGO_SETTINGS_MODULE', None)
     print '\n==================end=cl_debug======================\n'
 
